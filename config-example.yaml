@@ -1,0 +1,83 @@
+---
+logLevel: info
+unifi:
+  username: "myUser"
+  password: "myPassword"
+  baseURL: "https://192.168.100.1"
+
+clients:
+  whitelist:
+    - 50:de:06:4b:1a:5b
+    - da:d2:af:fc:6a:a6
+    - 18:3e:ef:c2:5a:7b
+    - 88:66:5a:4b:85:ef
+    - 78:4f:43:82:47:5c
+    - 00:0c:6c:0a:70:20
+    - 56:19:f3:55:62:7e
+    - 78:fb:d8:91:8d:8e
+
+rules:
+  allow_rule_scaffold: >
+    {
+      "_id":"62291e672266ee479431ccd7",
+      "action":"ALLOW",
+      "app_category_ids":[],
+      "app_ids":[262256],
+      "description":"Allow youtube for cool people",
+      "domains":[],
+      "enabled":false,
+      "ip_addresses":[],
+      "ip_ranges":[],
+      "matching_target":"APP",
+      "network_ids":[],
+      "schedule":{
+        "date_end":"2035-03-09",
+        "date_start":"2022-03-09",
+        "mode":"ALWAYS",
+        "repeat_on_days":[],
+        "time_all_day":false,
+        "time_range_end":"12:00",
+        "time_range_start":"09:00"
+      },
+      "target_devices":[],
+      "isAllTab":true,
+      "child":false,
+      "lastChild":false,
+      "parent":false,
+      "expanded":false
+    }
+
+  block_rule_scaffold: >
+    {
+      "_id":"62291e2d2266ee479431ccd6",
+      "action":"BLOCK",
+      "app_category_ids":[],
+      "app_ids":[262256],
+      "description":"Block Youtube for little folk",
+      "domains":[],
+      "enabled":false,
+      "ip_addresses":[],
+      "ip_ranges":[],
+      "matching_target":"APP",
+      "network_ids":[],
+      "schedule":{
+        "date_end":"2022-03-16",
+        "date_start":"2022-03-09",
+        "mode":"ALWAYS",
+        "repeat_on_days":[],
+        "time_all_day":false,
+        "time_range_end":"12:00",
+        "time_range_start":"09:00"
+      },
+      "target_devices":[
+        {
+          "type":"ALL_CLIENTS"
+        }
+      ],
+      "isAllTab":true,
+      "child":false,
+      "lastChild":false,
+      "parent":false,
+      "expanded":false
+    }
+
