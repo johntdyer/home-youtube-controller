@@ -16,6 +16,10 @@ type trafficRule struct {
 	TargetDevices  []targetDevices `json:"target_devices" default:"[{\"type\": \"ALL_CLIENTS\"}]"`
 }
 
+type currentStatus struct {
+	AllowRuleEnabled bool `json:"allow_rule_enabled"`
+	BlockRuleEnabled bool `json:"block_rule_enabled"`
+}
 type targetDevices struct {
 	ClientMac string `json:"client_mac,omitempty"`
 	Type      string `json:"type" default:"CLIENT"`

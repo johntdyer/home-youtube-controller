@@ -5,10 +5,12 @@ package main
 import (
 	"crypto/tls"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"os"
 
+	"github.com/urfave/cli/v2" // imports as package "cli"
+
+	// imports as package "cli"
 	"github.com/go-resty/resty/v2"
 	"github.com/spf13/viper"
 
@@ -77,8 +79,10 @@ func init() {
 
 }
 
-func (rc *ruleChecker) getCurrentStateJSON() {
+func (rc *ruleChecker) getCurrentStateJSON() (*currentStatus, []byte) {
 	trafficRules := &trafficRules{}
+	currentStatus := &currentStatus{}
+	var jsonString []byte
 	r, err := rc.resty.R().
 		ForceContentType("application/json").
 		SetResult(trafficRules).Get(ruleStatus.config.GetString(`unifi.baseURL`) + "/proxy/network/v2/api/site/default/trafficrules")
@@ -92,27 +96,20 @@ func (rc *ruleChecker) getCurrentStateJSON() {
 		for _, lib := range *trafficRules {
 			if rc.allowRule.ID == lib.ID {
 				rc.allowRuleEnable = lib.Enabled
+				currentStatus.AllowRuleEnabled = lib.Enabled
 			} else if rc.denyRule.ID == lib.ID {
 				rc.denyRuleEnabled = lib.Enabled
+				currentStatus.BlockRuleEnabled = lib.Enabled
 			}
 		}
-		jsonString, err := json.Marshal(
-			struct {
-				AllowRuleEnabled bool `json:"allow_rule_enabled"`
-				BlockRuleEnabled bool `json:"block_rule_enabled"`
-			}{
-				rc.allowRuleEnable,
-				rc.denyRuleEnabled,
-			},
-		)
+		jsonString, err = json.Marshal(currentStatus)
 
 		if err != nil {
 			fmt.Println("error:", err)
 		}
 
-		fmt.Println(string(jsonString))
 	}
-
+	return currentStatus, jsonString
 }
 
 func (rc *ruleChecker) getStatus() {
@@ -203,12 +200,12 @@ func (rc *ruleChecker) toggleDenyRule() {
 			"responseCode": r.StatusCode(),
 			"method":       r.Request.Method,
 			"url":          r.Request.URL,
-		}).Info("Deny rule changed")
+		}).Debug("Deny rule changed")
 
 	}
 }
 
-func (rc *ruleChecker) enableBlockRule(isEnabled bool) {
+func (rc *ruleChecker) switchBlockRule(isEnabled bool) {
 
 	rc.denyRule.Enabled = isEnabled
 
@@ -228,13 +225,13 @@ func (rc *ruleChecker) enableBlockRule(isEnabled bool) {
 			"responseCode": r.StatusCode(),
 			"method":       r.Request.Method,
 			"url":          r.Request.URL,
-		}).Info("Deny rule changed")
+		}).Debug("Deny rule changed")
 
 	}
 }
 
 // Turn on allow Rule
-func (rc *ruleChecker) enableAllowRule(isEnabled bool) {
+func (rc *ruleChecker) switchAllowRule(isEnabled bool) {
 
 	rc.allowRule.Enabled = isEnabled
 
@@ -309,28 +306,184 @@ func (rc *ruleChecker) buildRuleLists() {
 
 func main() {
 
-	var toggleAllow, toggleDeny, getState bool
-	flag.BoolVar(&toggleAllow, "toggle-allow", false, "toggle allow rule")
-	flag.BoolVar(&toggleDeny, "toggle-deny", false, "toggle deny rule")
-	flag.BoolVar(&getState, "state", false, "Get current state")
+	app := &cli.App{
+		Commands: []*cli.Command{
+			{
+				Name:    "status",
+				Aliases: []string{"s"},
+				Usage:   "Get current status",
+				Action: func(c *cli.Context) error {
+					ruleStatus.getCurrentStateJSON()
+					return nil
+				},
+			},
+			{
+				Name:  "allow",
+				Usage: "Enable allow rule",
+				Subcommands: []*cli.Command{
+					{
+						Name:     "on",
+						Usage:    "enable allow rule",
+						Category: "action",
+						Action: func(c *cli.Context) error {
+							ruleStatus.switchAllowRule(true)
+							return nil
+						},
+					},
+					{
+						Name:     "off",
+						Category: "action",
+						Usage:    "disable allow rule",
+						Action: func(c *cli.Context) error {
+							ruleStatus.switchAllowRule(false)
+							return nil
+						},
+					},
+					{
+						Name:    "toggle",
+						Aliases: []string{"t"},
 
-	flag.Parse()
-	if toggleAllow || toggleDeny {
-		if getState {
-			fmt.Println("state is mutually exclusive from toggle commands")
-			os.Exit(2)
-		}
+						Category: "action",
+						Usage:    "togle allow rule",
+						Action: func(c *cli.Context) error {
+							ruleStatus.toggleAllowRule()
+							return nil
+						},
+					},
+
+					{
+						Name:     "status",
+						Usage:    "get status of allow rule",
+						Aliases:  []string{"s"},
+						Category: "action",
+						Action: func(c *cli.Context) error {
+							cs, _ := ruleStatus.getCurrentStateJSON()
+							if cs.AllowRuleEnabled {
+								fmt.Println("allow rule enabled")
+								os.Exit(0)
+							} else {
+								fmt.Println("allow rule disabled")
+								os.Exit(1)
+							}
+							return nil
+						},
+					},
+				},
+			},
+
+			{
+				Name:    "block",
+				Aliases: []string{"B"},
+				Usage:   "Enable block rule",
+				Subcommands: []*cli.Command{
+					{
+						Name:     "on",
+						Usage:    "enable block rule",
+						Category: "action",
+						Action: func(c *cli.Context) error {
+							ruleStatus.switchBlockRule(true)
+							return nil
+						},
+					},
+					{
+						Name:     "off",
+						Usage:    "disable block rule",
+						Category: "action",
+						Action: func(c *cli.Context) error {
+							ruleStatus.switchBlockRule(false)
+							return nil
+						},
+					},
+					{
+						Name:     "status",
+						Usage:    "get status of block rule",
+						Category: "action",
+						Action: func(c *cli.Context) error {
+
+							cs, _ := ruleStatus.getCurrentStateJSON()
+							if cs.BlockRuleEnabled {
+								fmt.Println("block rule enabled")
+								os.Exit(0)
+							} else {
+								fmt.Println("block rule disabled")
+								os.Exit(1)
+							}
+							return nil
+						},
+					},
+					{
+						Name:     "toggle",
+						Aliases:  []string{"t"},
+						Category: "action",
+						Usage:    "togle block rule",
+						Action: func(c *cli.Context) error {
+							ruleStatus.toggleDenyRule()
+							return nil
+						},
+					},
+				},
+			},
+		},
 	}
 
-	if toggleAllow {
-		ruleStatus.toggleAllowRule()
+	err := app.Run(os.Args)
+	if err != nil {
+		log.Fatal(err)
 	}
-	if toggleDeny {
-		ruleStatus.toggleDenyRule()
-	}
-	if getState {
-		ruleStatus.getCurrentStateJSON()
-	}
+
+	// app := &cli.App{
+	// 	Name:     "youtube",
+	// 	Version:  "v0.0.1",
+	// 	Compiled: time.Now(),
+	// 	Commands: []*cli.Command{
+	// 		Name:    "allow",
+	// 		Aliases: []string{"a"},
+	// 		Usage:   "Allow Rule",
+	// 		Subcommands: []*cli.Command{
+	// 			{
+	// 				Name:  "add",
+	// 				Usage: "add a new template",
+	// 				Action: func(c *cli.Context) error {
+	// 					fmt.Println("new task template: ", c.Args().First())
+	// 					return nil
+	// 				},
+	// 			},
+	// 			{
+	// 				Name:  "remove",
+	// 				Usage: "remove an existing template",
+	// 				Action: func(c *cli.Context) error {
+	// 					fmt.Println("removed task template: ", c.Args().First())
+	// 					return nil
+	// 				},
+	// 			},
+	// 		},
+	// 	},
+	// }
+
+	// var toggleAllow, toggleDeny, getState bool
+	// flag.BoolVar(&toggleAllow, "toggle-allow", false, "toggle allow rule")
+	// flag.BoolVar(&toggleDeny, "toggle-deny", false, "toggle deny rule")
+	// flag.BoolVar(&toggleDeny, "toggle-deny", false, "toggle deny rule")
+	// flag.BoolVar(&toggleDeny, "switch-deny", false, "toggle deny rule")
+	// flag.BoolVar(&getState, "state", false, "Get current state")
+
+	// flag.Parse()
+	// if toggleAllow || toggleDeny {
+	// 	if getState {
+	// 		fmt.Println("state is mutually exclusive from toggle commands")
+	// 		os.Exit(2)
+	// 	}
+	// }
+
+	// if toggleAllow {
+	// 	ruleStatus.toggleAllowRule()
+	// }
+	// if toggleDeny {
+	// 	ruleStatus.toggleDenyRule()
+	// }
+	// if getState {
+	// 	ruleStatus.getCurrentStateJSON()
+	// }
 	os.Exit(0)
 
 	// fmt.Printf("ruleStatus.allowRuleEnable: %t | !ruleStatus.allowRuleEnable: %t \n", ruleStatus.denyRuleEnabled, !ruleStatus.allowRuleEnable)
