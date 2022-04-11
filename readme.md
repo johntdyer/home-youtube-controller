@@ -5,19 +5,20 @@
 CLI to manage traffic filter state on my UDM Pro
 
 ## Background
-So my kids sometimes need to use youtube for their classes, because my county in their infinite wisdom uses if for their online class content.  However other times I dont want them to have access.  So I needed a way to turn it on and off easily.
 
-Luckly Ubiquity provides means to do this in their UI which is nice ( example below ).
+So my kids sometimes need to use youtube for their classes, because my county in their infinite wisdom uses if for their online class content.  However other times I don't want them to have access.  So I needed a way to turn it on and off easily.
+
+Luckley Ubiquity provides means to do this in their UI which is nice ( example below ).
 
 ![UI Interface](/assets/ui.jpg)
 
-However this means wheneven I need to make then change I have to log into this tool, navigate to the right page and then toggle the appropriate filkter.  As a nerd I found this totally unacceptable and needed a better way.
+However this means whenever I need to make then change I have to log into this tool, navigate to the right page and then toggle the appropriate filter.  As a nerd I found this totally unacceptable and needed a better way.
 
 Personally I use Home Assistant for my home automation and wanted to expose this state trigger as a button within it. This means I needed a bridge to manage auth , present current state, and then toggle the appropriate filter when I deem it necessary. So with this app I can now use it as a [command line switches within Home Assistant](https://www.home-assistant.io/integrations/switch.command_line/).
 
 ## Usage
 
-```
+```shell
 NAME:
    Youtube - A new cli application
 
