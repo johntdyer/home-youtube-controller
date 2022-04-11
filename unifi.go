@@ -73,8 +73,10 @@ func init() {
 func main() {
 
 	app := &cli.App{
-		Version:  "v0.0.1",
-		Compiled: time.Now(),
+		Version:     "v0.0.1",
+		Name:        "Youtube",
+		Description: "Grossly over engineered CLI to manage Unifi filter rules on UDM Pro",
+		Compiled:    time.Now(),
 		Commands: []*cli.Command{
 			{
 				Name:    "status",
@@ -87,8 +89,10 @@ func main() {
 				},
 			},
 			{
-				Name:  "allow",
-				Usage: "Enable allow rule",
+				Name:    "allow",
+				Usage:   "Enable allow rule",
+				Aliases: []string{"A"},
+
 				Subcommands: []*cli.Command{
 					{
 						Name:     "on",
