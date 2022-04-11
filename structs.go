@@ -1,5 +1,10 @@
 package main
 
+import (
+	"github.com/go-resty/resty/v2"
+	"github.com/spf13/viper"
+)
+
 type trafficRule struct {
 	ID             string          `json:"_id"`
 	Action         string          `json:"action"`
@@ -14,6 +19,16 @@ type trafficRule struct {
 	NetworkIds     []string        `default:"[]" json:"network_ids"`
 	Schedule       schedule        `json:"schedule"`
 	TargetDevices  []targetDevices `json:"target_devices" default:"[{\"type\": \"ALL_CLIENTS\"}]"`
+}
+
+// unifiYouTubeClient wraps resty.Client
+type ruleChecker struct {
+	resty                            *resty.Client
+	config                           *viper.Viper
+	allowRule                        *trafficRule
+	denyRule                         *trafficRule
+	denyRuleEnabled, allowRuleEnable bool
+	csrfHeader                       string
 }
 
 type currentStatus struct {
