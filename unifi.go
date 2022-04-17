@@ -64,8 +64,9 @@ func init() {
 	ruleStatus.resty.SetRedirectPolicy(resty.FlexibleRedirectPolicy(10))
 	ruleStatus.resty.SetHeader("Content-Type", "application/json")
 	ruleStatus.resty.SetHeader("Accept", "application/json")
-	ruleStatus.resty.SetHeader("User-Agent", "dyer-test")
-	ruleStatus.setTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
+	ruleStatus.resty.SetHeader("User-Agent", "youtube-controller")
+	ruleStatus.resty.SetTimeout(time.Duration(ruleStatus.config.GetInt64("unifi.httpTimeout")) * time.Millisecond)
+	ruleStatus.resty.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: ruleStatus.config.GetBool("unifi.insecureSkipVerify")})
 	ruleStatus.setup()
 
 }
@@ -77,6 +78,7 @@ func main() {
 		Name:        "Youtube",
 		Description: "Grossly over engineered CLI to manage Unifi filter rules on UDM Pro",
 		Compiled:    time.Now(),
+
 		Commands: []*cli.Command{
 			{
 				Name:    "status",

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/go-resty/resty/v2"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -42,17 +43,29 @@ func (rc *ruleChecker) getCurrentStateJSON() (*currentStatus, []byte) {
 }
 
 func (rc *ruleChecker) getStatus() {
+
 	trafficRules := &trafficRules{}
-	r, err := rc.resty.R().
+
+	rc.resty.OnError(func(req *resty.Request, err error) {
+		if v, ok := err.(*resty.ResponseError); ok {
+
+			logger.WithFields(log.Fields{"response": v.Response, "error": v.Error()}).Error("Error")
+
+			if ruleStatus.config.GetBool("sensu.sendSensuEventOnFailure") {
+				sendSensuAlert(v)
+			}
+		}
+		// Log the error, increment a metric, etc...
+	})
+
+	r, _ := rc.resty.R().
 		ForceContentType("application/json").
 		SetResult(trafficRules).Get(ruleStatus.config.GetString(`unifi.baseURL`) + "/proxy/network/v2/api/site/default/trafficrules")
-	if err != nil {
-		logger.Panic(err)
-	}
 
-	if r.StatusCode() >= 400 {
-		logger.WithFields(log.Fields{"response": string(r.Body()), "responseCode": r.StatusCode()}).Fatal("Error")
-	} else {
+	rc.resty.OnAfterResponse(func(client *resty.Client, response *resty.Response) error {
+		if ruleStatus.config.GetBool("sensu.sendEventpass") {
+			sendSensuSuccess()
+		}
 		for _, lib := range *trafficRules {
 			if rc.allowRule.ID == lib.ID {
 				rc.allowRuleEnable = lib.Enabled
@@ -70,20 +83,38 @@ func (rc *ruleChecker) getStatus() {
 				"enabled": lib.Enabled,
 			}).Debug("Found Rule")
 		}
-	}
+		return nil
+	})
+
+	rc.resty.OnError(func(req *resty.Request, err error) {
+		if v, ok := err.(*resty.ResponseError); ok {
+
+			logger.WithFields(log.Fields{"response": v.Response.String(), "responseCode": r.StatusCode()}).Fatal("Error")
+
+		}
+
+	})
 }
 
 func (rc *ruleChecker) setup() {
-	r, err := rc.resty.R().
+
+	r, _ := rc.resty.R().
 		SetHeader("Content-Type", "application/json").
 		SetBody(`{"username":"` + ruleStatus.config.GetString(`unifi.username`) + `", "password":"` + ruleStatus.config.GetString(`unifi.password`) + `"}`).
 		Post(ruleStatus.config.GetString(`unifi.baseURL`) + "/api/auth/login")
-	if err != nil {
-		panic(err)
-	}
-	if r.StatusCode() >= 400 {
-		logger.WithFields(log.Fields{"response": string(r.Body()), "responseCode": r.StatusCode()}).Fatal("Error")
-	} else {
+
+	rc.resty.OnError(func(req *resty.Request, err error) {
+		if v, ok := err.(*resty.ResponseError); ok {
+
+			if ruleStatus.config.GetBool("sensu.sendSensuEventOnFailure") {
+				sendSensuAlert(v)
+			}
+		}
+	})
+	//
+
+	rc.resty.OnAfterResponse(func(client *resty.Client, response *resty.Response) error {
+
 		for key, value := range r.Header() {
 			if key == "X-Csrf-Token" {
 				rc.csrfHeader = value[0]
@@ -96,12 +127,36 @@ func (rc *ruleChecker) setup() {
 			"responseCode": r.StatusCode(),
 			"Set-Cookie":   r.Header()["Set-Cookie"],
 		}).Debug("Authed")
+		if ruleStatus.config.GetBool("sensu.sendSensuEventOnSuccess") {
+			sendSensuSuccess()
+		}
+		return nil
+	})
+	// Build Lists
+	rc.buildRuleLists()
+	// Set Status
+	rc.getStatus()
+	// if r.StatusCode() >= 400 {
+	// 	logger.WithFields(log.Fields{"response": string(r.Body()), "responseCode": r.StatusCode()}).Fatal("Error")
+	// } else {
+	// 	for key, value := range r.Header() {
+	// 		if key == "X-Csrf-Token" {
+	// 			rc.csrfHeader = value[0]
+	// 			break
+	// 		}
 
-		// Build Lists
-		rc.buildRuleLists()
-		// Set Status
-		rc.getStatus()
-	}
+	// 	}
+	// 	log.WithFields(log.Fields{
+	// 		"CSRFToken":    rc.csrfHeader,
+	// 		"responseCode": r.StatusCode(),
+	// 		"Set-Cookie":   r.Header()["Set-Cookie"],
+	// 	}).Debug("Authed")
+
+	// 	// Build Lists
+	// 	rc.buildRuleLists()
+	// 	// Set Status
+	// 	rc.getStatus()
+	// }
 }
 
 // SetTLSClientConfig assigns client TLS config

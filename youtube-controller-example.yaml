@@ -4,6 +4,12 @@ unifi:
   username: "myUser"
   password: "myPassword"
   baseURL: "https://192.168.100.1"
+  httpTimeout: 5000 # Time in ms
+  insecureSkipVerify: true
+
+sensu:
+  sendSensuEventOnFailure: true
+  sendSensuEventOnSuccess: true
 
 clients:
   whitelist:

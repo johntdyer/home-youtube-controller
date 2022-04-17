@@ -29,6 +29,7 @@ type ruleChecker struct {
 	denyRule                         *trafficRule
 	denyRuleEnabled, allowRuleEnable bool
 	csrfHeader                       string
+	sensuHandler                     bool
 }
 
 type currentStatus struct {
